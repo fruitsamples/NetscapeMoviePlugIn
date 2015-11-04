@@ -25,36 +25,33 @@
  
  IN NO EVENT SHALL APPLE BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL OR CONSEQUENTIAL 
  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS 
-          OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF THE USE, 
+ OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF THE USE, 
  REPRODUCTION, MODIFICATION AND/OR DISTRIBUTION OF THE APPLE SOFTWARE, HOWEVER CAUSED AND 
  WHETHER UNDER THEORY OF CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY OR 
  OTHERWISE, EVEN IF APPLE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #import <Carbon/Carbon.h>
 #import <QuickTime/QuickTime.h>
 
 #import <WebKit/npapi.h>
-#import <WebKit/npfunctions.h>
 #import <WebKit/npruntime.h>
 
-
-typedef struct
-{
-    NPClass *_class;
-    uint32_t referenceCount;
+typedef struct MovieObject {
+    NPObject header;
     Movie movie;
     MovieController controller;
 } MovieObject;
 
-extern NPClass *getMovieClass(void);
+NPClass *getMovieClass(void);
 
 bool LoadMovieFromFile(Movie *obj, const char* fname);
+
 bool CreateMovieController(MovieObject *obj, NPWindow *window);
-void UpdateMovieFrame (MovieObject *obj, NPWindow *window); 
+void UpdateMovieFrame(MovieObject *obj, NPWindow *window); 
 void PlayMovie(MovieObject *obj);
 void PauseMovie(MovieObject *obj);
-void SetMovieMuted (MovieObject *obj, bool mute);
-bool IsMovieMuted (MovieObject *obj);
+void SetMovieMuted(MovieObject *obj, bool muted);
+bool IsMovieMuted(MovieObject *obj);
 bool HandleMovieEvent(MovieObject *obj, EventRecord *event);
 void DestroyMovie(MovieObject *obj);
-

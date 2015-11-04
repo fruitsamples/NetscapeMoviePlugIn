@@ -30,137 +30,136 @@
  WHETHER UNDER THEORY OF CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY OR 
  OTHERWISE, EVEN IF APPLE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#import "movie.h"
+
 #import "PluginObject.h"
-#import "MovieObject.h"
 
-void pluginInvalidate ();
-bool pluginHasProperty (NPClass *theClass, NPIdentifier name);
-bool pluginHasMethod (NPClass *theClass, NPIdentifier name);
-void pluginGetProperty (PluginObject *obj, NPIdentifier name, NPVariant *variant);
-void pluginSetProperty (PluginObject *obj, NPIdentifier name, const NPVariant *variant);
-void pluginInvoke (PluginObject *obj, NPIdentifier name, NPVariant *args, uint32_t argCount, NPVariant *result);
-void pluginInvokeDefault (PluginObject *obj, NPVariant *args, uint32_t argCount, NPVariant *result);
-NPObject *pluginAllocate (NPP npp, NPClass *theClass);
-void pluginDeallocate (PluginObject *obj);
+#import "movie.h"
 
-static NPClass _pluginFunctionPtrs = { 
+static void pluginInvalidate(NPObject *obj);
+static bool pluginHasProperty(NPObject *obj, NPIdentifier name);
+static bool pluginHasMethod(NPObject *obj, NPIdentifier name);
+static bool pluginGetProperty(NPObject *obj, NPIdentifier name, NPVariant *variant);
+static bool pluginSetProperty(NPObject *obj, NPIdentifier name, const NPVariant *variant);
+static bool pluginInvoke(NPObject *obj, NPIdentifier name, const NPVariant *args, uint32_t argCount, NPVariant *result);
+static bool pluginInvokeDefault(NPObject *obj, const NPVariant *args, uint32_t argCount, NPVariant *result);
+static NPObject *pluginAllocate(NPP npp, NPClass *theClass);
+static void pluginDeallocate(NPObject *obj);
+
+static NPClass pluginClass = { 
     NP_CLASS_STRUCT_VERSION,
-    (NPAllocateFunctionPtr) pluginAllocate, 
-    (NPDeallocateFunctionPtr) pluginDeallocate, 
-    (NPInvalidateFunctionPtr) pluginInvalidate,
-    (NPHasMethodFunctionPtr) pluginHasMethod,
-    (NPInvokeFunctionPtr) pluginInvoke,
-    (NPInvokeDefaultFunctionPtr) pluginInvokeDefault,
-    (NPHasPropertyFunctionPtr) pluginHasProperty,
-    (NPGetPropertyFunctionPtr) pluginGetProperty,
-    (NPSetPropertyFunctionPtr) pluginSetProperty,
+    pluginAllocate, 
+    pluginDeallocate, 
+    pluginInvalidate,
+    pluginHasMethod,
+    pluginInvoke,
+    pluginInvokeDefault,
+    pluginHasProperty,
+    pluginGetProperty,
+    pluginSetProperty,
 };
  
 NPClass *getPluginClass(void)
 {
-    return &_pluginFunctionPtrs;
+    return &pluginClass;
 }
 
 static bool identifiersInitialized = false;
 
 #define ID_MOVIE_PROPERTY               0
-#define	NUM_PROPERTY_IDENTIFIERS	1
+#define NUM_PROPERTY_IDENTIFIERS        1
 
 static NPIdentifier pluginPropertyIdentifiers[NUM_PROPERTY_IDENTIFIERS];
 static const NPUTF8 *pluginPropertyIdentifierNames[NUM_PROPERTY_IDENTIFIERS] = {
     "movie"
 };
 
-#define ID_GETMOVIE_METHOD		        0
-#define NUM_METHOD_IDENTIFIERS		        1
+#define ID_GETMOVIE_METHOD                      0
+#define NUM_METHOD_IDENTIFIERS                  1
 
 static NPIdentifier pluginMethodIdentifiers[NUM_METHOD_IDENTIFIERS];
 static const NPUTF8 *pluginMethodIdentifierNames[NUM_METHOD_IDENTIFIERS] = {
     "getMovie"
 };
 
-static void initializeIdentifiers()
+static void initializeIdentifiers(void)
 {
-    browser->getstringidentifiers (pluginPropertyIdentifierNames, NUM_PROPERTY_IDENTIFIERS, pluginPropertyIdentifiers);
-    browser->getstringidentifiers (pluginMethodIdentifierNames, NUM_METHOD_IDENTIFIERS, pluginMethodIdentifiers);
-};
+    browser->getstringidentifiers(pluginPropertyIdentifierNames, NUM_PROPERTY_IDENTIFIERS, pluginPropertyIdentifiers);
+    browser->getstringidentifiers(pluginMethodIdentifierNames, NUM_METHOD_IDENTIFIERS, pluginMethodIdentifiers);
+}
 
-bool pluginHasProperty (NPClass *theClass, NPIdentifier name)
-{	
+bool pluginHasProperty(NPObject *obj, NPIdentifier name)
+{
     int i;
-    for (i = 0; i < NUM_PROPERTY_IDENTIFIERS; i++) {
-        if (name == pluginPropertyIdentifiers[i]){
+    for (i = 0; i < NUM_PROPERTY_IDENTIFIERS; i++)
+        if (name == pluginPropertyIdentifiers[i])
             return true;
-        }
-    }
     return false;
 }
 
-bool pluginHasMethod (NPClass *theClass, NPIdentifier name)
+bool pluginHasMethod(NPObject *obj, NPIdentifier name)
 {
     int i;
-    for (i = 0; i < NUM_METHOD_IDENTIFIERS; i++) {
-        if (name == pluginMethodIdentifiers[i]){
+    for (i = 0; i < NUM_METHOD_IDENTIFIERS; i++)
+        if (name == pluginMethodIdentifiers[i])
             return true;
-        }
-    }
     return false;
 }
 
-void pluginGetProperty (PluginObject *obj, NPIdentifier name, NPVariant *variant)
+bool pluginGetProperty(NPObject *obj, NPIdentifier name, NPVariant *variant)
 {
+    PluginObject *plugin = (PluginObject *)obj;
     if (name == pluginPropertyIdentifiers[ID_MOVIE_PROPERTY]) {
-        variant->type = NPVariantType_Object;
-        variant->value.objectValue = (NPObject *)obj->movieObject;
+        NPObject *resultObj = &plugin->movieObject->header;
+        browser->retainobject(resultObj);
+        OBJECT_TO_NPVARIANT(resultObj, *variant);
+        return true;
     }
-    else {
-        variant->type = NPVariantType_Void;
-    }
+    return false;
 }
 
-void pluginSetProperty (PluginObject *obj, NPIdentifier name, const NPVariant *variant)
+bool pluginSetProperty(NPObject *obj, NPIdentifier name, const NPVariant *variant)
 {
+    return false;
 }
 
-void pluginInvoke (PluginObject *obj, NPIdentifier name, NPVariant *args, unsigned argCount, NPVariant *result)
+bool pluginInvoke(NPObject *obj, NPIdentifier name, const NPVariant *args, uint32_t argCount, NPVariant *result)
 {
+    PluginObject *plugin = (PluginObject *)obj;
     if (name == pluginMethodIdentifiers[ID_GETMOVIE_METHOD]) {
-        result->type = NPVariantType_Object;
-        result->value.objectValue = (NPObject *)obj->movieObject;
+        NPObject *resultObj = &plugin->movieObject->header;
+        browser->retainobject(resultObj);
+        OBJECT_TO_NPVARIANT(resultObj, *result);
+        return true;
     }
-    else
-        result->type = NPVariantType_Void;
+    return false;
 }
 
-void pluginInvokeDefault (PluginObject *obj, NPVariant *args, unsigned argCount, NPVariant *result)
+bool pluginInvokeDefault(NPObject *obj, const NPVariant *args, uint32_t argCount, NPVariant *result)
 {
-    result->type = NPVariantType_Void;
+    return false;
 }
 
-void pluginInvalidate ()
+void pluginInvalidate(NPObject *obj)
 {
-    // Make sure we've released any remainging references to JavaScript
-    // objects.
+    // Release any remaining references to JavaScript objects.
 }
 
-NPObject *pluginAllocate (NPP npp, NPClass *theClass)
+NPObject *pluginAllocate(NPP npp, NPClass *theClass)
 {
-    PluginObject *newInstance = (PluginObject *)malloc (sizeof(PluginObject));
+    PluginObject *newInstance = malloc(sizeof(PluginObject));
     
     if (!identifiersInitialized) {
         identifiersInitialized = true;
         initializeIdentifiers();
     }
 
-    newInstance->movieObject = (MovieObject *)browser->createobject (npp, getMovieClass());
+    newInstance->movieObject = (MovieObject *)browser->createobject(npp, getMovieClass());
     newInstance->npp = npp;
-    
-    return (NPObject *)newInstance;
+
+    return &newInstance->header;
 }
 
-void pluginDeallocate (PluginObject *obj) 
+void pluginDeallocate(NPObject *obj) 
 {
-    free ((void *)obj);
+    free(obj);
 }
-

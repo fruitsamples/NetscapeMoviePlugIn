@@ -25,55 +25,57 @@
  
  IN NO EVENT SHALL APPLE BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL OR CONSEQUENTIAL 
  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS 
-          OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF THE USE, 
+ OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF THE USE, 
  REPRODUCTION, MODIFICATION AND/OR DISTRIBUTION OF THE APPLE SOFTWARE, HOWEVER CAUSED AND 
  WHETHER UNDER THEORY OF CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY OR 
  OTHERWISE, EVEN IF APPLE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#import "movie.h"
+
 #import "MovieObject.h"
 
-static void movieInvalidate ();
-static bool movieHasProperty (NPClass *theClass, NPIdentifier name);
-static bool movieHasMethod (NPClass *theClass, NPIdentifier name);
-static void movieGetProperty (MovieObject *obj, NPIdentifier name, NPVariant *variant);
-static void movieSetProperty (MovieObject *obj, NPIdentifier name, const NPVariant *variant);
-static void movieInvoke (MovieObject *obj, NPIdentifier name, NPVariant *args, uint32_t argCount, NPVariant *result);
-static void movieInvokeDefault (MovieObject *obj, NPVariant *args, uint32_t argCount, NPVariant *result);
-static NPObject *movieAllocate ();
-static void movieDeallocate (MovieObject *obj);
+#import "movie.h"
 
-static NPClass _movieFunctionPtrs = { 
+static void movieInvalidate(NPObject *obj);
+static bool movieHasProperty(NPObject *obj, NPIdentifier name);
+static bool movieHasMethod(NPObject *obj, NPIdentifier name);
+static bool movieGetProperty(NPObject *obj, NPIdentifier name, NPVariant *variant);
+static bool movieSetProperty(NPObject *obj, NPIdentifier name, const NPVariant *variant);
+static bool movieInvoke(NPObject *obj, NPIdentifier name, const NPVariant *args, uint32_t argCount, NPVariant *result);
+static bool movieInvokeDefault(NPObject *obj, const NPVariant *args, uint32_t argCount, NPVariant *result);
+static NPObject *movieAllocate(NPP npp, NPClass *theClass);
+static void movieDeallocate(NPObject *obj);
+
+static NPClass movieClass = { 
     NP_CLASS_STRUCT_VERSION,
-    (NPAllocateFunctionPtr) movieAllocate, 
-    (NPDeallocateFunctionPtr) movieDeallocate, 
-    (NPInvalidateFunctionPtr) movieInvalidate,
-    (NPHasMethodFunctionPtr) movieHasMethod,
-    (NPInvokeFunctionPtr) movieInvoke,
-    (NPInvokeDefaultFunctionPtr) movieInvokeDefault,
-    (NPHasPropertyFunctionPtr) movieHasProperty,
-    (NPGetPropertyFunctionPtr) movieGetProperty,
-    (NPSetPropertyFunctionPtr) movieSetProperty,
+    movieAllocate, 
+    movieDeallocate, 
+    movieInvalidate,
+    movieHasMethod,
+    movieInvoke,
+    movieInvokeDefault,
+    movieHasProperty,
+    movieGetProperty,
+    movieSetProperty,
 };
 
 NPClass *getMovieClass(void)
 {
-    return &_movieFunctionPtrs;
+    return &movieClass;
 }
 
 static bool identifiersInitialized = false;
 
 #define ID_MUTED_PROPERTY               0
-#define	NUM_PROPERTY_IDENTIFIERS	1
+#define NUM_PROPERTY_IDENTIFIERS        1
 
 static NPIdentifier moviePropertyIdentifiers[NUM_PROPERTY_IDENTIFIERS];
 static const NPUTF8 *moviePropertyIdentifierNames[NUM_PROPERTY_IDENTIFIERS] = {
     "muted"
 };
 
-#define ID_PLAY_METHOD				0
+#define ID_PLAY_METHOD                          0
 #define ID_PAUSE_METHOD                         1
-#define NUM_METHOD_IDENTIFIERS		        2
+#define NUM_METHOD_IDENTIFIERS                  2
 
 static NPIdentifier movieMethodIdentifiers[NUM_METHOD_IDENTIFIERS];
 static const NPUTF8 *movieMethodIdentifierNames[NUM_METHOD_IDENTIFIERS] = {
@@ -81,91 +83,99 @@ static const NPUTF8 *movieMethodIdentifierNames[NUM_METHOD_IDENTIFIERS] = {
     "pause"
 };
 
-static void initializeIdentifiers()
+static void initializeIdentifiers(void)
 {
-    browser->getstringidentifiers (moviePropertyIdentifierNames, NUM_PROPERTY_IDENTIFIERS, moviePropertyIdentifiers);
-    browser->getstringidentifiers (movieMethodIdentifierNames, NUM_METHOD_IDENTIFIERS, movieMethodIdentifiers);
-};
+    browser->getstringidentifiers(moviePropertyIdentifierNames, NUM_PROPERTY_IDENTIFIERS, moviePropertyIdentifiers);
+    browser->getstringidentifiers(movieMethodIdentifierNames, NUM_METHOD_IDENTIFIERS, movieMethodIdentifiers);
+}
 
-bool movieHasProperty (NPClass *theClass, NPIdentifier name)
-{	
+bool movieHasProperty(NPObject *obj, NPIdentifier name)
+{
     int i;
-    for (i = 0; i < NUM_PROPERTY_IDENTIFIERS; i++) {
-        if (name == moviePropertyIdentifiers[i]){
+    for (i = 0; i < NUM_PROPERTY_IDENTIFIERS; i++)
+        if (name == moviePropertyIdentifiers[i])
             return true;
-        }
+    return false;
+}
+
+bool movieHasMethod(NPObject *obj, NPIdentifier name)
+{
+    int i;
+    for (i = 0; i < NUM_METHOD_IDENTIFIERS; i++)
+        if (name == movieMethodIdentifiers[i])
+            return true;
+    return false;
+}
+
+bool movieGetProperty(NPObject *obj, NPIdentifier name, NPVariant *variant)
+{
+    MovieObject *movieObj = (MovieObject *)obj;
+    if (name == moviePropertyIdentifiers[ID_MUTED_PROPERTY]) {
+        BOOLEAN_TO_NPVARIANT(IsMovieMuted(movieObj), *variant);
+        return true;
     }
     return false;
 }
 
-bool movieHasMethod (NPClass *theClass, NPIdentifier name)
+bool movieSetProperty(NPObject *obj, NPIdentifier name, const NPVariant *variant)
 {
-    int i;
-    for (i = 0; i < NUM_METHOD_IDENTIFIERS; i++) {
-        if (name == movieMethodIdentifiers[i]){
+    MovieObject *movieObj = (MovieObject *)obj;
+    if (name == moviePropertyIdentifiers[ID_MUTED_PROPERTY]) {
+        if (NPVARIANT_IS_BOOLEAN(*variant)) {
+            SetMovieMuted(movieObj, NPVARIANT_TO_BOOLEAN(*variant));
             return true;
         }
+        return false;
     }
     return false;
 }
 
-void movieGetProperty (MovieObject *obj, NPIdentifier name, NPVariant *variant)
+bool movieInvoke(NPObject *obj, NPIdentifier name, const NPVariant *args, uint32_t argCount, NPVariant *result)
 {
-    if (name == moviePropertyIdentifiers[ID_MUTED_PROPERTY]) {
-        variant->type = NPVariantType_Bool;
-        variant->value.boolValue = IsMovieMuted (obj);
-    }
-    else {
-        variant->type = NPVariantType_Void;
-    }
-}
-
-void movieSetProperty (MovieObject *obj, NPIdentifier name, const NPVariant *variant)
-{
-    if (name == moviePropertyIdentifiers[ID_MUTED_PROPERTY]) {
-        if (variant->type == NPVariantType_Bool) {
-            SetMovieMuted (obj, variant->value.boolValue);
-        }
-    }
-}
-
-void movieInvoke (MovieObject *obj, NPIdentifier name, NPVariant *args, unsigned argCount, NPVariant *result)
-{
+    MovieObject *movieObj = (MovieObject *)obj;
     if (name == movieMethodIdentifiers[ID_PLAY_METHOD]) {
-        PlayMovie (obj);
+        PlayMovie(movieObj);
+        VOID_TO_NPVARIANT(*result);
+        return true;
     }
-    else if (name == movieMethodIdentifiers[ID_PAUSE_METHOD]) {
-        PauseMovie (obj);
+    if (name == movieMethodIdentifiers[ID_PAUSE_METHOD]) {
+        PauseMovie(movieObj);
+        VOID_TO_NPVARIANT(*result);
+        return true;
     }
-    result->type = NPVariantType_Void;
+    return false;
 }
 
-void movieInvokeDefault (MovieObject *obj, NPVariant *args, unsigned argCount, NPVariant *result)
+bool movieInvokeDefault(NPObject *obj, const NPVariant *args, uint32_t argCount, NPVariant *result)
 {
-    if (argCount == 1){
+    MovieObject *movieObj = (MovieObject *)obj;
+    if (argCount == 1) {
         if (NPVARIANT_IS_STRING(args[0])) {
             NPString string = NPVARIANT_TO_STRING(args[0]);
-            if (strncmp (string.UTF8Characters, "play", string.UTF8Length) == 0) {
-                PlayMovie (obj);
+            if (strncmp(string.UTF8Characters, "play", string.UTF8Length) == 0) {
+                PlayMovie(movieObj);
+                VOID_TO_NPVARIANT(*result);
+                return true;
             }
-            else if (strncmp (string.UTF8Characters, "pause", string.UTF8Length) == 0) {
-                PauseMovie (obj);
+            if (strncmp(string.UTF8Characters, "pause", string.UTF8Length) == 0) {
+                PauseMovie(movieObj);
+                VOID_TO_NPVARIANT(*result);
+                return true;
             }
         }
     }
     
-    result->type = NPVariantType_Void;
+    return false;
 }
 
-void movieInvalidate ()
+void movieInvalidate(NPObject *obj)
 {
-    // Make sure we've released any remainging references to JavaScript
-    // objects.
+    // Release any remaining references to JavaScript objects.
 }
 
-NPObject *movieAllocate (NPP npp, NPClass *class)
+NPObject *movieAllocate(NPP npp, NPClass *theClass)
 {
-    MovieObject *newInstance = (MovieObject *)malloc (sizeof(MovieObject));
+    MovieObject *newInstance = malloc(sizeof(MovieObject));
     
     if (!identifiersInitialized) {
         identifiersInitialized = true;
@@ -174,25 +184,25 @@ NPObject *movieAllocate (NPP npp, NPClass *class)
     newInstance->movie = 0;
     newInstance->controller = 0;
     
-    return (NPObject *)newInstance;
+    return &newInstance->header;
 }
 
-void movieDeallocate (MovieObject *obj) 
+void movieDeallocate(NPObject *obj) 
 {
-    free (obj);
+    free(obj);
 }
 
 // ------ Actual implementation of plugin movie playing functionality.
 
-bool LoadMovieFromFile(Movie *movie, const char* fname)
+bool LoadMovieFromFile(Movie *movie, const char *fname)
 {    
     OSErr err;
     FSSpec spec;
     
-    if (strncmp(fname, "/", 1) == 0) {
+    if (fname[0] == '/') {
         // Browser handed us a POSIX path.
         FSRef fref;
-        err = FSPathMakeRef((const UInt8 *) fname, &fref, NULL);
+        err = FSPathMakeRef((const UInt8 *)fname, &fref, NULL);
         if (err != noErr) {
             printf("FSPathMakeRef failed %d\n", err);
             return false;
@@ -266,7 +276,7 @@ bool CreateMovieController(MovieObject *obj, NPWindow *window)
 
 #define kMovieControllerHeight 16
 
-void UpdateMovieFrame (MovieObject *obj, NPWindow *window) 
+void UpdateMovieFrame(MovieObject *obj, NPWindow *window) 
 {   
     if (obj->movie != NULL && obj->controller != NULL) {
         Rect rect;
@@ -279,43 +289,36 @@ void UpdateMovieFrame (MovieObject *obj, NPWindow *window)
     }
 }
 
-void PlayMovie (MovieObject *obj)
+void PlayMovie(MovieObject *obj)
 {
-    if (obj->movie != NULL) {
+    if (obj->movie != NULL)
         StartMovie(obj->movie);
-    }
 }
 
-void PauseMovie (MovieObject *obj)
+void PauseMovie(MovieObject *obj)
 {
-    if (obj->movie != NULL) {
+    if (obj->movie != NULL)
         StopMovie(obj->movie);
-    }
 }
 
-bool IsMovieMuted (MovieObject *obj)
+bool IsMovieMuted(MovieObject *obj)
 {
-    short vol = GetMovieVolume (obj->movie);
-    float v = vol/256.;
-    return v < 0;
+    return GetMovieVolume(obj->movie) < 0;
 }
 
-void SetMovieMuted (MovieObject *obj, bool mute)
+void SetMovieMuted(MovieObject *obj, bool mute)
 {
-    short vol = GetMovieVolume (obj->movie);
-    float v = vol/256.;
-
-    if ((mute && (v > 0)) || (!mute && (v < 0))) {
-        SetMovieVolume (obj->movie, -v*256);
-    }
+    short vol = GetMovieVolume(obj->movie);
+    if ((mute && vol > 0) || (!mute && vol < 0))
+        SetMovieVolume(obj->movie, -vol);
 }
 
-void DestroyMovie (MovieObject *obj)
+void DestroyMovie(MovieObject *obj)
 {
     PauseMovie(obj);
     if (obj->controller != NULL) {
         DisposeMovieController(obj->controller);
-	obj->controller = NULL;
+        obj->controller = NULL;
     }
     if (obj->movie != NULL) {
         DisposeMovie(obj->movie);
@@ -325,10 +328,7 @@ void DestroyMovie (MovieObject *obj)
 
 bool HandleMovieEvent(MovieObject *obj, EventRecord *event)
 {
-    if (obj->controller) {
+    if (obj->controller)
         MCIsPlayerEvent(obj->controller, event);
-    }
     return false;
 }
-
-

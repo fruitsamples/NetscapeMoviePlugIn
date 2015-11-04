@@ -30,20 +30,15 @@
  WHETHER UNDER THEORY OF CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY OR 
  OTHERWISE, EVEN IF APPLE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#import <WebKit/npapi.h>
-#import <WebKit/npfunctions.h>
-#import <WebKit/npruntime.h>
 
-#import "MovieObject.h";
+#import "MovieObject.h"
 
-typedef struct
-{
-    NPClass *_class;
-    uint32_t referenceCount;
+typedef struct PluginObject {
+    NPObject header;
     NPP npp;
     NPWindow* window;
     MovieObject *movieObject;
 } PluginObject;
 
-extern NPClass *getPluginClass(void);
+NPClass *getPluginClass(void);
 

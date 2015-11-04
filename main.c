@@ -30,24 +30,25 @@
  WHETHER UNDER THEORY OF CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY OR 
  OTHERWISE, EVEN IF APPLE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #import "movie.h"
 #import "PluginObject.h"
 
 NPNetscapeFuncs* browser;
 
-NPError		NPP_New(NPMIMEType pluginType, NPP instance, uint16 mode, int16 argc, char* argn[], char* argv[], NPSavedData* saved);
-NPError		NPP_Destroy(NPP instance, NPSavedData** save);
-NPError		NPP_SetWindow(NPP instance, NPWindow* window);
-NPError		NPP_NewStream(NPP instance, NPMIMEType type, NPStream* stream, NPBool seekable, uint16* stype);
-NPError		NPP_DestroyStream(NPP instance, NPStream* stream, NPReason reason);
-int32		NPP_WriteReady(NPP instance, NPStream* stream);
-int32		NPP_Write(NPP instance, NPStream* stream, int32 offset, int32 len, void* buffer);
-void		NPP_StreamAsFile(NPP instance, NPStream* stream, const char* fname);
-void		NPP_Print(NPP instance, NPPrint* platformPrint);
-int16		NPP_HandleEvent(NPP instance, void* event);
-void		NPP_URLNotify(NPP instance, const char* URL, NPReason reason, void* notifyData);
-NPError		NPP_GetValue(NPP instance, NPPVariable variable, void *value);
-NPError		NPP_SetValue(NPP instance, NPNVariable variable, void *value);
+NPError NPP_New(NPMIMEType pluginType, NPP instance, uint16 mode, int16 argc, char* argn[], char* argv[], NPSavedData* saved);
+NPError NPP_Destroy(NPP instance, NPSavedData** save);
+NPError NPP_SetWindow(NPP instance, NPWindow* window);
+NPError NPP_NewStream(NPP instance, NPMIMEType type, NPStream* stream, NPBool seekable, uint16* stype);
+NPError NPP_DestroyStream(NPP instance, NPStream* stream, NPReason reason);
+int32   NPP_WriteReady(NPP instance, NPStream* stream);
+int32   NPP_Write(NPP instance, NPStream* stream, int32 offset, int32 len, void* buffer);
+void    NPP_StreamAsFile(NPP instance, NPStream* stream, const char* fname);
+void    NPP_Print(NPP instance, NPPrint* platformPrint);
+int16   NPP_HandleEvent(NPP instance, void* event);
+void    NPP_URLNotify(NPP instance, const char* URL, NPReason reason, void* notifyData);
+NPError NPP_GetValue(NPP instance, NPPVariable variable, void *value);
+NPError NPP_SetValue(NPP instance, NPNVariable variable, void *value);
 
 #pragma export on
 // Mach-o entry points
@@ -58,9 +59,8 @@ void NP_Shutdown(void);
 int main(NPNetscapeFuncs *browserFuncs, NPPluginFuncs *pluginFuncs, NPP_ShutdownProcPtr *shutdown);
 #pragma export off
 
-
-typedef void (* FunctionPointer) (void);
-typedef void (* TransitionVector) (void);
+typedef void (* FunctionPointer)(void);
+typedef void (* TransitionVector)(void);
 static FunctionPointer functionPointerForTVector(TransitionVector);
 static TransitionVector tVectorForFunctionPointer(FunctionPointer);
 
@@ -130,25 +130,27 @@ int main(NPNetscapeFuncs *browserFuncs, NPPluginFuncs *pluginFuncs, NPP_Shutdown
     browser->getJavaEnv = (NPN_GetJavaEnvProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->getJavaEnv);
     browser->getJavaPeer = (NPN_GetJavaPeerProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->getJavaPeer);
     
-    /*
-    // These functions are not yet supported in CFM browers like Netscape.
-    // In the future, the versions of the vectors should be checked before accessing symbols.
-    browser->releasevariantvalue = functionPointerForTVector((TransitionVector)browserFuncs->releasevariantvalue);
-    browser->getstringidentifier = functionPointerForTVector((TransitionVector)browserFuncs->getstringidentifier);
-    browser->getstringidentifiers = functionPointerForTVector((TransitionVector)browserFuncs->getstringidentifiers);
-    browser->getintidentifier = functionPointerForTVector((TransitionVector)browserFuncs->getintidentifier);
-    browser->identifierisstring = functionPointerForTVector((TransitionVector)browserFuncs->identifierisstring);
-    browser->utf8fromidentifier = functionPointerForTVector((TransitionVector)browserFuncs->utf8fromidentifier);
-    browser->createobject = functionPointerForTVector((TransitionVector)browserFuncs->createobject);
-    browser->retainobject = functionPointerForTVector((TransitionVector)browserFuncs->retainobject);
-    browser->releaseobject = functionPointerForTVector((TransitionVector)browserFuncs->releaseobject);
-    browser->call = functionPointerForTVector((TransitionVector)browserFuncs->call);
-    browser->evalute = functionPointerForTVector((TransitionVector)browserFuncs->evalute);
-    browser->getproperty = functionPointerForTVector((TransitionVector)browserFuncs->getproperty);
-    browser->setproperty = functionPointerForTVector((TransitionVector)browserFuncs->setproperty);
-    browser->removeproperty = functionPointerForTVector((TransitionVector)browserFuncs->removeproperty);
-    browser->setexception = functionPointerForTVector((TransitionVector)browserFuncs->setexception);
-    */
+    // Scripting functions appeared in NPAPI version 14
+    if (browser->version >= 14) {
+        browser->getstringidentifier = (NPN_GetStringIdentifierProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->getstringidentifier);
+        browser->getstringidentifiers = (NPN_GetStringIdentifiersProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->getstringidentifiers);
+        browser->getintidentifier = (NPN_GetIntIdentifierProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->getintidentifier);
+        browser->identifierisstring = (NPN_IdentifierIsStringProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->identifierisstring);
+        browser->utf8fromidentifier = (NPN_UTF8FromIdentifierProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->utf8fromidentifier);
+        browser->createobject = (NPN_CreateObjectProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->createobject);
+        browser->retainobject = (NPN_RetainObjectProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->retainobject);
+        browser->releaseobject = (NPN_ReleaseObjectProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->releaseobject);
+        browser->invoke = (NPN_InvokeProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->invoke);
+        browser->invokeDefault = (NPN_InvokeDefaultProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->invokeDefault);
+        browser->evaluate = (NPN_EvaluateProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->evaluate);
+        browser->getproperty = (NPN_GetPropertyProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->getproperty);
+        browser->setproperty = (NPN_SetPropertyProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->setproperty);
+        browser->removeproperty = (NPN_RemovePropertyProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->removeproperty);
+        browser->hasproperty = (NPN_HasPropertyProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->hasproperty);
+        browser->hasmethod = (NPN_HasMethodProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->hasmethod);
+        browser->releasevariantvalue = (NPN_ReleaseVariantValueProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->releasevariantvalue);
+        browser->setexception = (NPN_SetExceptionProcPtr)functionPointerForTVector((TransitionVector)browserFuncs->setexception);
+    }
     
     pluginFuncs->version = 11;
     pluginFuncs->size = sizeof(pluginFuncs);
@@ -173,6 +175,7 @@ int main(NPNetscapeFuncs *browserFuncs, NPPluginFuncs *pluginFuncs, NPP_Shutdown
 
 NPError NPP_New(NPMIMEType pluginType, NPP instance, uint16 mode, int16 argc, char* argn[], char* argv[], NPSavedData* saved)
 {
+    // Scripting functions appeared in NPAPI version 14
     if (browser->version >= 14)
         instance->pdata = browser->createobject (instance, getPluginClass());
 
@@ -273,11 +276,50 @@ void NPP_URLNotify(NPP instance, const char* url, NPReason reason, void* notifyD
 
 }
 
+static bool shouldRetainReturnedNPObjects(NPP instance)
+{
+    // This check is necessary if you want your exposed NPObject to not leak in WebKit-based browsers (including
+    // Safari) released prior to Mac OS X 10.5 (Leopard).
+    //
+    // Earlier versions of WebKit retained the NPObject returned from NPP_GetValue(NPPVpluginScriptableNPObject).
+    // However, the NPRuntime API says NPObjects should be retained by the plug-in before they are returned.  WebKit
+    // versions later than 420 do not retain returned NPObjects automatically; plug-ins are required to retain them
+    // before returning from NPP_GetValue(), as in other browsers.
+    static const unsigned webKitVersionNumberWithRetainFix = 420;
+    static const char* const webKitVersionPrefix = " AppleWebKit/";
+    const char *userAgent = browser->uagent(instance);
+    if (userAgent) {
+        // Find " AppleWebKit/" in the user agent string
+        char *webKitVersionString = strstr(userAgent, webKitVersionPrefix);
+        if (!webKitVersionString)
+            return true; // Not WebKit
+            
+        // Skip past " AppleWebKit/"
+        webKitVersionString += strlen(webKitVersionPrefix);
+        
+        // Convert the version string into an integer.  There are some trailing junk characters after the version
+        // number, but atoi() is smart enough to handle those.
+        int webKitVersion = atoi(webKitVersionString);
+        
+        // Should not retain returned NPObjects when running in versions of WebKit earlier than 420
+        if (webKitVersion && webKitVersion < webKitVersionNumberWithRetainFix)
+            return false;
+    }
+    
+    return true;
+}
+
 NPError NPP_GetValue(NPP instance, NPPVariable variable, void *value)
 {
     if (variable == NPPVpluginScriptableNPObject) {
         void **v = (void **)value;
         PluginObject *obj = instance->pdata;
+        
+        // Returned objects are expected to be retained in most browsers, but not all.
+        // See comments in shouldRetainReturnedNPObjects().
+        if (obj && shouldRetainReturnedNPObjects(instance))
+            browser->retainobject((NPObject*)obj);
+        
         *v = obj;
         return NPERR_NO_ERROR;
     }
@@ -291,8 +333,9 @@ NPError NPP_SetValue(NPP instance, NPNVariable variable, void *value)
 
 // function pointer converters
 
-FunctionPointer functionPointerForTVector(TransitionVector tvp)
+static FunctionPointer functionPointerForTVector(TransitionVector tvp)
 {
+#ifdef __ppc__
     const uint32 temp[6] = {0x3D800000, 0x618C0000, 0x800C0000, 0x804C0004, 0x7C0903A6, 0x4E800420};
     uint32 *newGlue = NULL;
     
@@ -308,10 +351,15 @@ FunctionPointer functionPointerForTVector(TransitionVector tvp)
     }
     
     return (FunctionPointer)newGlue;
+#else
+    // Just use the function pointer on other architectures
+    return (FunctionPointer)tvp;
+#endif /* __ppc__ */
 }
 
-TransitionVector tVectorForFunctionPointer(FunctionPointer fp)
+static TransitionVector tVectorForFunctionPointer(FunctionPointer fp)
 {
+#ifdef __ppc__
     FunctionPointer *newGlue = NULL;
     if (fp != NULL) {
         newGlue = (FunctionPointer *)malloc(2 * sizeof(FunctionPointer));
@@ -321,4 +369,8 @@ TransitionVector tVectorForFunctionPointer(FunctionPointer fp)
         }
     }
     return (TransitionVector)newGlue;
+#else
+    // Just use the function pointer on other architectures
+    return (TransitionVector)fp;
+#endif /* __ppc__ */
 }
